@@ -40,7 +40,11 @@ If Import-Module WebAdministration fails later, these outputs will help explain 
 Import-Module WebAdministration -ErrorAction Stop
 
 # List all sites with key info
-Get-ChildItem IIS:\\Sites | Select-Object @{n='Site';e={$_.Name}}, @{n='State';e={$_.State}}, @{n='Bindings';e={$_.Bindings.DisplayName}}, @{n='PhysicalPath'} | Format-Table -AutoSize
+Get-ChildItem "IIS:\Sites" | Select-Object `
+  @{Name='Site';Expression={$_.Name}}, `
+  @{Name='State';Expression={$_.State}}, `
+  @{Name='Bindings';Expression={($_.Bindings | ForEach-Object {$_.bindingInformation}) -join ', '}}, `
+  @{Name='PhysicalPath';Expression={$_.PhysicalPath}} | Format-Table -AutoSize
 
 # Alternate (appcmd)
 & "$env:windir\\system32\\inetsrv\\appcmd.exe" list site /text:name,bindings,state > "$Base\\appcmd_sites.txt"
@@ -60,8 +64,11 @@ Get-WebBinding | Where-Object { $_.protocol -eq 'https' } | Select bindingInform
 
 ```powershell
 # Replace example.com with hostname to check which binding matches
-$host = "example.com"
-Get-WebBinding | Where-Object { $_.bindingInformation -like "*:80:$host" -or $_.bindingInformation -like "*:443:$host" } | Format-Table protocol,bindingInformation > "$Base\\binding_match_$host.txt"
+$hostname = "example.com"
+Get-WebBinding | Where-Object {
+    $_.bindingInformation -like "*:80:$hostname" -or $_.bindingInformation -like "*:443:$hostname"
+} | Format-Table protocol,bindingInformation | Out-File "$Base\binding_match_$($hostname).txt"
+
 ```
 
 ### Find physical site roots, virtual directories & apps
